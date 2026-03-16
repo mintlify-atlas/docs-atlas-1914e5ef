@@ -1,0 +1,80 @@
+---
+title: "Upload file"
+description: "Upload an audio file to Supabase Storage."
+---
+
+## POST /api/upload-file
+
+Accepts a `multipart/form-data` request containing an audio file and stores it in the `mp4` Supabase Storage bucket under the `uploads/` prefix. The caller must be authenticated.
+
+<Note>
+This endpoint performs authentication itself — it calls `supabase.auth.getUser()` and returns **401** if no valid session is found. Ensure the request includes the Supabase session cookie.
+</Note>
+
+### Request
+
+Content-Type: `multipart/form-data`
+
+<ParamField body="file" type="File" required>
+  The audio file to upload. Accepted MIME types: `audio/mpeg`, `audio/mp4`, `video/mp4`. Maximum file size: **50 MB**.
+</ParamField>
+
+### File naming
+
+To prevent collisions the server generates a unique filename using the pattern:
+
+```
+uploads/{timestamp}-{random}.{ext}
+```
+
+For example: `uploads/1710000000000-k3j9xzq5abc.mp3`
+
+### Response
+
+**200 OK**
+
+```json
+{
+  "filePath": "uploads/1710000000000-k3j9xzq5abc.mp3",
+  "fileUrl": "https://your-project.supabase.co/storage/v1/object/public/mp4/uploads/1710000000000-k3j9xzq5abc.mp3",
+  "fileType": "audio/mpeg",
+  "fileSize": 4823142,
+  "fileName": "my-track.mp3"
+}
+```
+
+<ResponseField name="filePath" type="string">
+  Storage path within the `mp4` bucket (e.g. `uploads/1710000000000-abc.mp3`). Use this value when calling the `uploadMusic` server action to associate the file with a track record.
+</ResponseField>
+
+<ResponseField name="fileUrl" type="string">
+  Fully-qualified public URL of the uploaded file.
+</ResponseField>
+
+<ResponseField name="fileType" type="string">
+  MIME type of the uploaded file as reported by the browser (e.g. `audio/mpeg`).
+</ResponseField>
+
+<ResponseField name="fileSize" type="number">
+  File size in bytes.
+</ResponseField>
+
+<ResponseField name="fileName" type="string">
+  Original filename as provided by the client.
+</ResponseField>
+
+### Error responses
+
+| Status | Body | Reason |
+|--------|------|--------|
+| 400 | `{ "error": "No file provided" }` | The `file` field was missing from the form data. |
+| 401 | `{ "error": "Unauthorized. User must be logged in to upload files." }` | No valid Supabase session found. |
+| 500 | `{ "error": "<message>" }` | Supabase Storage upload failed. |
+
+### Example
+
+```bash
+curl -X POST "https://your-domain.com/api/upload-file" \
+  -H "Cookie: <supabase-session-cookie>" \
+  -F "file=@/path/to/track.mp3"
+```

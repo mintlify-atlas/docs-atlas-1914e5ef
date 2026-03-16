@@ -1,0 +1,57 @@
+---
+title: "Uploading tracks"
+description: "Upload MP3 or MP4 audio files to a group so every member can access and download them."
+---
+
+Any authenticated member of a group can upload tracks to it. Uploaded files are stored in Supabase Storage and are immediately visible to all other members of the same group.
+
+## Upload flow
+
+<Steps>
+  <Step title="Open the Upload Track dialog">
+    Navigate to a group's detail page and click the **Upload Track** button in the page header.
+  </Step>
+  <Step title="Select your file">
+    Click **Select File** in the dialog, or drag and drop a file onto the upload area. Only MP3 and MP4 files up to **50 MB** are accepted.
+  </Step>
+  <Step title="Enter track details">
+    Fill in the **Track Title** and **Artist** fields. Both are required before the upload can proceed.
+  </Step>
+  <Step title="Choose a group">
+    Use the **Share with Group** dropdown to select which group the track should be shared with. The dropdown lists every group you are a member of.
+  </Step>
+  <Step title="Upload the track">
+    Click **Upload Track**. A loading spinner appears while the file transfers. The dialog closes automatically on success, and the track appears in the group's **Shared Tracks** list.
+  </Step>
+</Steps>
+
+## File validation
+
+The upload dialog enforces the following rules before submitting:
+
+- **File type** must be one of: `audio/mpeg` (MP3), `audio/mp4`, or `video/mp4`. Any other file type triggers an error before upload begins.
+- **Track title**, **artist**, and **group** fields must all be filled in. The **Upload Track** button stays disabled until every required field has a value.
+- **File size** must not exceed **50 MB**.
+
+<Warning>
+  If you select a file with an unsupported type, the dialog will reject it immediately and ask you to choose an MP3 or MP4 file instead.
+</Warning>
+
+## Storage
+
+Files are uploaded to Supabase Storage in the `mp4` bucket under the `uploads/` prefix. Each file is stored with a unique, timestamped filename to prevent collisions. A public URL is generated at upload time and saved alongside the track record so members can download the file directly.
+
+## After upload
+
+Once uploaded, the track appears in the group's **Shared Tracks** section. Every entry in that list shows:
+
+- Track title
+- Artist name
+- The uploader's email address
+- The upload date
+
+The track also appears in the **Recently Uploaded** section on the dashboard for all group members.
+
+<Info>
+  You must be signed in to upload tracks. Unauthenticated users are redirected to the login page.
+</Info>

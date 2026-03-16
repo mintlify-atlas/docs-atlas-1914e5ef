@@ -1,0 +1,107 @@
+---
+title: "Storage"
+description: "Configure the Supabase Storage bucket that holds all uploaded audio and video files."
+---
+
+Snippet stores every uploaded track in a single Supabase Storage bucket named `mp4`. The bucket holds MP3 and MP4 files uploaded by users and serves them back via public URLs.
+
+## Bucket overview
+
+| Setting | Value |
+|---|---|
+| Bucket name | `mp4` |
+| Upload path | `uploads/` |
+| File naming | `{timestamp}-{random}.{extension}` |
+| Cache control | `3600` seconds |
+| Maximum file size | 50 MB |
+| Accepted MIME types | `audio/mpeg`, `audio/mp4`, `video/mp4` |
+
+Files are stored at paths such as `uploads/1712345678901-k3j9xz7.mp3`. The name is generated in `src/lib/actions.ts` using `Date.now()` and a random base-36 string to avoid collisions.
+
+## Creating the bucket
+
+<Steps>
+  <Step title="Open Supabase Storage">
+    In your Supabase dashboard, click **Storage** in the left sidebar.
+  </Step>
+
+  <Step title="Create the bucket">
+    Click **New bucket**. Set the following values:
+
+    - **Name**: `mp4` — this must match exactly. The app references this bucket name directly in `src/lib/actions.ts` and any API route handlers.
+    - **Public bucket**: enabled — files are served via public URLs retrieved with `getPublicUrl()`.
+
+    Click **Save**.
+
+    <Warning>
+      The bucket name `mp4` is hardcoded in the application. If you change the
+      bucket name you must update every call to `supabase.storage.from("mp4")`
+      in `src/lib/actions.ts` and any upload route handlers.
+    </Warning>
+  </Step>
+
+  <Step title="Configure storage policies">
+    Open the **Policies** tab for the `mp4` bucket and add the following policies.
+
+    **Allow authenticated users to upload files:**
+
+    ```sql
+    CREATE POLICY "Authenticated users can upload"
+      ON storage.objects FOR INSERT
+      TO authenticated
+      WITH CHECK (bucket_id = 'mp4');
+    ```
+
+    **Allow public read access:**
+
+    ```sql
+    CREATE POLICY "Public read access"
+      ON storage.objects FOR SELECT
+      TO public
+      USING (bucket_id = 'mp4');
+    ```
+
+    **Allow authenticated users to download files:**
+
+    ```sql
+    CREATE POLICY "Authenticated users can download"
+      ON storage.objects FOR SELECT
+      TO authenticated
+      USING (bucket_id = 'mp4');
+    ```
+
+    <Note>
+      If you prefer to keep files private and serve them with signed URLs instead
+      of public URLs, disable the public bucket option and replace `getPublicUrl`
+      calls in `src/lib/actions.ts` with `createSignedUrl`.
+    </Note>
+  </Step>
+</Steps>
+
+## How files are uploaded
+
+When a user uploads a track, the app:
+
+1. Generates a unique filename: `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${extension}`
+2. Uploads the file to `uploads/{uniqueFilename}` in the `mp4` bucket with `cacheControl: "3600"`
+3. Retrieves the public URL with `getPublicUrl` and stores it in the `tracks.file_url` column
+
+The `file_path` column in `tracks` stores the relative path (`uploads/{uniqueFilename}`) and is used when downloading files via `supabase.storage.from("mp4").download(path)`.
+
+## Supported file types
+
+The upload dialog accepts the following MIME types:
+
+| MIME type | Extension | Description |
+|---|---|---|
+| `audio/mpeg` | `.mp3` | MP3 audio |
+| `audio/mp4` | `.mp4` (audio) | AAC audio in MP4 container |
+| `video/mp4` | `.mp4` (video) | MP4 video with audio |
+
+Files larger than 50 MB or with a different MIME type are rejected by the upload dialog before reaching the server.
+
+<Tip>
+  Supabase Storage also enforces a per-bucket file size limit. Make sure the
+  bucket's **File size limit** in the dashboard is set to at least 50 MB to
+  match the client-side restriction.
+</Tip>

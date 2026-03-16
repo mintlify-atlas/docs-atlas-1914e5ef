@@ -1,0 +1,66 @@
+---
+title: "Introduction"
+description: "Snippet is a private music sharing platform that lets you share MP3 and MP4 audio files with friends through group-based libraries."
+---
+
+Snippet is a private, group-based music sharing platform. Instead of public playlists or social feeds, Snippet organizes music around closed groups — circles of friends or collaborators who share tracks with each other directly. Every upload lives inside a group, accessible only to its members.
+
+Authentication is handled entirely through Google OAuth, so there are no passwords to manage. Once you sign in, you can create groups, upload tracks, invite friends, and download anything shared by group members.
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Group-based libraries" icon="users">
+    Every track belongs to a group. Create as many groups as you need — one for close friends, one for a band, one for a record club.
+  </Card>
+  <Card title="MP3 and MP4 uploads" icon="music">
+    Upload audio files up to 50MB in MP3 or MP4 format. Files are stored securely in Supabase Storage and available for all group members to stream or download.
+  </Card>
+  <Card title="Member invitations" icon="user-plus">
+    Invite friends to a group by sending them a link. When they sign in, they land directly in the group they were invited to.
+  </Card>
+  <Card title="Track downloads" icon="download">
+    Every member of a group can download any track shared within it. No streaming-only restrictions.
+  </Card>
+  <Card title="Dashboard overview" icon="layout-dashboard">
+    The dashboard shows all your groups and recently uploaded tracks across every group you belong to, in one place.
+  </Card>
+  <Card title="Google sign-in" icon="chrome">
+    Sign in with your existing Google account. No separate Snippet account or password required.
+  </Card>
+</CardGroup>
+
+## Core concepts
+
+### Groups
+
+A group is a shared music library. You create a group, give it a name and optional description, and then invite members. All tracks uploaded to a group are visible and downloadable by every member. You can belong to multiple groups simultaneously.
+
+### Tracks
+
+A track is an uploaded audio file — either MP3 or MP4 — with a title and artist name attached. When you upload a track, you choose which group it belongs to. The track then appears in that group's **Shared Tracks** list, attributed to your account with the upload date.
+
+### Members
+
+Members are the people in a group. The person who creates a group is automatically a member. Additional members join through invitation links. The group page shows a members list with each person's username (derived from their Google account email) and the date they joined.
+
+### Dashboard
+
+The dashboard at `/dashboard` is your home view. It shows:
+
+- **Your Groups** — every group you've created or joined, as clickable cards
+- **Recently Uploaded** — the latest tracks from all your groups in reverse chronological order
+- **Activity Feed** — coming soon
+
+From the dashboard you can create a new group or jump directly to any group page.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Sign up, create your first group, upload a track, and invite a friend — step by step.
+  </Card>
+  <Card title="Self-hosting" icon="server" href="/self-hosting">
+    Run your own instance of Snippet using Next.js, Supabase, and Vercel.
+  </Card>
+</CardGroup>

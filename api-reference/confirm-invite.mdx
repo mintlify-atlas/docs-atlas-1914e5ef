@@ -1,0 +1,53 @@
+---
+title: "Confirm invite"
+description: "Accept a group invitation by inserting the user into the group_members table."
+---
+
+## POST /api/confirm-invite
+
+Adds a user to a group by inserting a record into the `group_members` table. This endpoint is called after the user follows an invitation link and confirms they want to join.
+
+### Request body
+
+<ParamField body="user_id" type="string" required>
+  The Supabase auth UUID of the user accepting the invitation.
+</ParamField>
+
+<ParamField body="group_id" type="string" required>
+  The UUID of the group the user is joining.
+</ParamField>
+
+### Response
+
+**200 OK**
+
+```json
+{ "text": "success" }
+```
+
+<ResponseField name="text" type="string">
+  Always `"success"` when the membership record was inserted successfully.
+</ResponseField>
+
+### Error responses
+
+| Status | Body | Reason |
+|--------|------|--------|
+| 500 | `{ "error": "Missing user id or group id" }` | Either `user_id` or `group_id` was absent from the request body. |
+| 500 | `{ "error": "<database error message>" }` | The `group_members` insert failed (e.g. the user is already a member, or the group does not exist). |
+
+<Note>
+The endpoint returns `500` (rather than `400`) for missing parameters — this is the current behaviour in the source code.
+</Note>
+
+### Example
+
+```bash
+curl -X POST "https://your-domain.com/api/confirm-invite" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: <supabase-session-cookie>" \
+  -d '{
+    "user_id": "USER_UUID",
+    "group_id": "GROUP_UUID"
+  }'
+```

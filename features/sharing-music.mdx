@@ -1,0 +1,48 @@
+---
+title: "Sharing music"
+description: "Learn how tracks are shared within groups and how members can browse, search, and download music."
+---
+
+Snippet is built around group-based sharing. When you upload a track to a group, every current member of that group can immediately see and download it — no additional sharing step required.
+
+## Tracks in a group
+
+All tracks uploaded to a group appear in the **Shared Tracks** panel on the group detail page. Each track entry displays:
+
+- **Title** — the name entered at upload time
+- **Artist** — the artist name entered at upload time
+- **Shared by** — the email address of the member who uploaded the track
+- **Upload date** — the date the track was added to the group
+
+## Downloading tracks
+
+Any group member can download a track by clicking the **Download** button on its entry in the Shared Tracks list. The file downloads directly from Supabase Storage in its original format (MP3 or MP4).
+
+<Info>
+  You must be a member of the group and signed in to download tracks. Unauthenticated users are redirected to the login page.
+</Info>
+
+## Recently Uploaded on the dashboard
+
+The **Recently Uploaded** section on the main dashboard aggregates the latest tracks across all groups you belong to. Each card shows the track title, artist name, and the group it was shared in. This gives you a single view of new music without having to visit each group individually.
+
+## Searching tracks
+
+Tracks can be searched by **title** or **artist** using a case-insensitive match. The search covers all tracks in groups you are a member of, returning results ordered by upload date with the most recent first.
+
+<CardGroup cols={2}>
+  <Card title="Search by title" icon="magnifying-glass">
+    Enter any part of the track title to find matching tracks across your groups.
+  </Card>
+  <Card title="Search by artist" icon="microphone">
+    Enter any part of the artist name to filter tracks by who performed them.
+  </Card>
+</CardGroup>
+
+## Access control
+
+Tracks are scoped to their group. A track uploaded to one group is not visible to members of a different group. Only authenticated users who are current members of a group can view or download its tracks.
+
+<Note>
+  Sharing a track means uploading it to a shared group. There is no per-track link sharing — access is always determined by group membership.
+</Note>

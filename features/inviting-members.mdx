@@ -1,0 +1,53 @@
+---
+title: "Inviting members"
+description: "Share an invite link to add new members to a group so they can access its shared tracks."
+---
+
+Any member of a group can invite other people by sharing a group-specific invite link. There is no limit on the number of members a group can have.
+
+## Invite flow
+
+<Steps>
+  <Step title="Open the Invite Members dialog">
+    On the group detail page, click the **Invite Members** button. This button appears both in the page header and in the Members panel in the sidebar.
+  </Step>
+  <Step title="Copy the invite link">
+    The dialog displays a unique invite link for the group. Click the **copy** button to copy it to your clipboard. A confirmation toast confirms the link was copied.
+  </Step>
+  <Step title="Share the link">
+    Send the invite link to the person you want to add — via message, email, or any other channel. Anyone with the link can use it to join the group.
+  </Step>
+  <Step title="Invitee joins the group">
+    When the recipient opens the link, they are taken to the `/invite_user` page with the group ID pre-filled. After confirming, they are added to the group's member list.
+  </Step>
+</Steps>
+
+<Warning>
+  The invite link grants access to anyone who has it. Only share it with people you want to add to the group.
+</Warning>
+
+## The Members panel
+
+All current members are listed in the **Members** panel on the right side of the group detail page. Each entry shows:
+
+- **Avatar** — a circular badge displaying the member's initials
+- **Username** — derived from the prefix of their email address (the part before `@`)
+- **Joined date** — the date they became a member of the group
+
+The panel header shows the total member count.
+
+## Membership data
+
+Memberships are stored in the `group_members` table, which links a user to a group with a timestamp:
+
+| Column | Description |
+|---|---|
+| `member_id` | The user's ID |
+| `group_id` | The group they belong to |
+| `joined_at` | The date and time they joined |
+
+When a group is created, the creator is automatically added as its first member.
+
+<Note>
+  A user can be a member of multiple groups simultaneously. Each group membership is an independent record in the `group_members` table.
+</Note>

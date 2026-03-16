@@ -1,0 +1,121 @@
+---
+title: "Environment variables"
+description: "All required environment variables for running Snippet locally and in production."
+---
+
+Snippet requires three environment variables to connect to Supabase. Two are safe to expose in the browser; one is server-only and must never be shared publicly.
+
+## Required variables
+
+<ParamField path="NEXT_PUBLIC_SUPABASE_URL" type="string" required>
+  The base URL of your Supabase project. Used by the browser client, server
+  client, and middleware to connect to the Supabase API.
+
+  Found in your Supabase dashboard under **Project Settings → API → Project URL**.
+</ParamField>
+
+<ParamField path="NEXT_PUBLIC_SUPABASE_KEY" type="string" required>
+  The public anon key for your Supabase project. Used by the browser client
+  (`createBrowserClient`), server client (`createServerClient`), and middleware
+  session management.
+
+  Found in your Supabase dashboard under **Project Settings → API → Project API keys → anon public**.
+</ParamField>
+
+<ParamField path="SUPABASE_SERVICE_ROLE_KEY" type="string" required>
+  The service role key for your Supabase project. Used server-side only to query
+  `users_view` when resolving group member email addresses — bypassing Row Level
+  Security to access `auth.users`.
+
+  Found in your Supabase dashboard under **Project Settings → API → Project API keys → service_role**.
+</ParamField>
+
+<Warning>
+  `SUPABASE_SERVICE_ROLE_KEY` is a privileged key that bypasses Row Level
+  Security. It must only be used in server-side code. Never prefix it with
+  `NEXT_PUBLIC_` and never expose it to the browser.
+</Warning>
+
+## Public vs. private variables
+
+Next.js exposes any variable prefixed with `NEXT_PUBLIC_` to the browser bundle. Variables without that prefix are only available in server-side code (Server Components, Server Actions, Route Handlers, and middleware).
+
+| Variable | Available in browser | Available on server |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Yes |
+| `NEXT_PUBLIC_SUPABASE_KEY` | Yes | Yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | No | Yes |
+
+## Local development setup
+
+Create a `.env.local` file in the root of the project:
+
+```env .env.local
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_KEY=your-anon-public-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+<Note>
+  `.env.local` is listed in `.gitignore` by default in Next.js projects. Never
+  commit this file to version control.
+</Note>
+
+## Finding values in the Supabase dashboard
+
+<Steps>
+  <Step title="Open your Supabase project">
+    Go to [supabase.com](https://supabase.com) and select your project from the
+    dashboard.
+  </Step>
+  <Step title="Navigate to Project Settings">
+    Click **Project Settings** in the left sidebar, then select **API**.
+  </Step>
+  <Step title="Copy the Project URL">
+    Under **Project URL**, copy the URL and set it as `NEXT_PUBLIC_SUPABASE_URL`.
+  </Step>
+  <Step title="Copy the anon key">
+    Under **Project API keys**, copy the `anon public` key and set it as
+    `NEXT_PUBLIC_SUPABASE_KEY`.
+  </Step>
+  <Step title="Copy the service role key">
+    Under **Project API keys**, click **Reveal** next to `service_role`, copy
+    the key, and set it as `SUPABASE_SERVICE_ROLE_KEY`.
+
+    <Warning>
+      Treat this key like a password. Anyone who has it can read and write any
+      data in your database.
+    </Warning>
+  </Step>
+</Steps>
+
+## Setting variables in Vercel
+
+For production deployments on Vercel, add each variable through the Vercel dashboard rather than committing a `.env` file.
+
+<Steps>
+  <Step title="Open your Vercel project">
+    Go to [vercel.com](https://vercel.com) and select your project.
+  </Step>
+  <Step title="Go to Environment Variables">
+    Click **Settings** in the top navigation, then select **Environment
+    Variables** in the sidebar.
+  </Step>
+  <Step title="Add each variable">
+    Add the following variables, setting **Environment** to **Production**,
+    **Preview**, and **Development** as appropriate:
+
+    - `NEXT_PUBLIC_SUPABASE_URL`
+    - `NEXT_PUBLIC_SUPABASE_KEY`
+    - `SUPABASE_SERVICE_ROLE_KEY`
+  </Step>
+  <Step title="Redeploy">
+    After saving the variables, trigger a new deployment so the values are
+    picked up by the build.
+  </Step>
+</Steps>
+
+<Tip>
+  You can also import variables from a local `.env.local` file using the Vercel
+  CLI: `vercel env pull .env.local`
+</Tip>

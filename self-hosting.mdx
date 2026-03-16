@@ -1,0 +1,245 @@
+---
+title: "Self-hosting"
+description: "Run your own instance of Snippet using Next.js 14, Supabase, and Vercel."
+---
+
+Snippet is a Next.js 14 application that uses Supabase for authentication, database, and file storage, and is designed to be deployed on Vercel. This guide walks through setting up every piece from scratch.
+
+## Prerequisites
+
+- **Node.js 18+** (or [Bun](https://bun.sh))
+- A [Supabase](https://supabase.com) account (free tier works)
+- A [Vercel](https://vercel.com) account (free tier works)
+- A Google Cloud project with OAuth credentials configured (for Google sign-in)
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/ehcaw/snippet
+    cd snippet
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    <CodeGroup>
+
+    ```bash npm
+    npm install
+    ```
+
+    ```bash bun
+    bun install
+    ```
+
+    </CodeGroup>
+
+    The main runtime dependencies are:
+
+    - `next` 14.2.4 — App Router framework
+    - `@supabase/supabase-js` and `@supabase/ssr` — Supabase client and server-side helpers
+    - `@vercel/blob` — Vercel Blob storage integration
+    - `zustand` — client-side state management
+    - `swr` — data fetching and revalidation
+    - `@radix-ui/*` — accessible UI primitives
+  </Step>
+
+  <Step title="Create a Supabase project">
+    1. Go to [supabase.com](https://supabase.com) and create a new project.
+    2. Choose a region close to your users.
+    3. Save the database password somewhere safe — you won't need it directly, but it's good to keep.
+    4. Wait for the project to finish provisioning (roughly one minute).
+
+    Once the project is ready, go to **Project Settings → API**. You'll need the values from this page in the next step.
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create a `.env.local` file in the project root:
+
+    ```bash
+    touch .env.local
+    ```
+
+    Add the following variables:
+
+    ```bash .env.local
+    NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+    ```
+
+    | Variable | Where to find it |
+    |---|---|
+    | `NEXT_PUBLIC_SUPABASE_URL` | Project Settings → API → Project URL |
+    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Project Settings → API → Project API keys → `anon public` |
+    | `SUPABASE_SERVICE_ROLE_KEY` | Project Settings → API → Project API keys → `service_role` |
+
+    <Warning>
+      Never commit `.env.local` to version control. The `.gitignore` in the repository already excludes `.env*.local` files, but double-check before pushing.
+    </Warning>
+
+    <Note>
+      `SUPABASE_SERVICE_ROLE_KEY` is used server-side only to query the `users_view` for member email lookup. It is never exposed to the browser.
+    </Note>
+  </Step>
+
+  <Step title="Set up the database schema">
+    In the Supabase dashboard, open the **SQL Editor** and run the schema below to create the required tables, view, and function.
+
+    ```sql
+    -- Groups table
+    create table groups (
+      id uuid primary key default gen_random_uuid(),
+      name text not null,
+      description text,
+      created_at timestamptz default now()
+    );
+
+    -- Group members table
+    create table group_members (
+      member_id uuid references auth.users(id) on delete cascade,
+      group_id uuid references groups(id) on delete cascade,
+      joined_at timestamptz default now(),
+      primary key (member_id, group_id)
+    );
+
+    -- Tracks table
+    create table tracks (
+      id uuid primary key default gen_random_uuid(),
+      title text,
+      artist text,
+      group_id uuid references groups(id) on delete cascade,
+      uploaded_by uuid references auth.users(id) on delete set null,
+      file_path text not null,
+      file_url text not null,
+      file_type text,
+      file_size bigint,
+      upload_date timestamptz default now()
+    );
+
+    -- User uploads join table
+    create table user_uploads (
+      user_id uuid references auth.users(id) on delete cascade,
+      track_id uuid references tracks(id) on delete cascade,
+      primary key (user_id, track_id)
+    );
+
+    -- View for looking up users by ID (used with service role key)
+    create view users_view as
+      select id, email from auth.users;
+
+    -- Function: fetch tracks for a group with the uploader's email
+    create or replace function get_tracks_with_user_emails(p_group_id uuid)
+    returns table (
+      id uuid,
+      title text,
+      artist text,
+      group_id uuid,
+      uploaded_by uuid,
+      file_path text,
+      file_url text,
+      file_type text,
+      file_size bigint,
+      upload_date timestamptz,
+      user_email text
+    )
+    language sql
+    security definer
+    as $$
+      select
+        t.id, t.title, t.artist, t.group_id, t.uploaded_by,
+        t.file_path, t.file_url, t.file_type, t.file_size, t.upload_date,
+        u.email as user_email
+      from tracks t
+      left join auth.users u on u.id = t.uploaded_by
+      where t.group_id = p_group_id
+      order by t.upload_date desc;
+    $$;
+    ```
+
+    <Note>
+      The `get_tracks_with_user_emails` function uses `security definer` so it can join against `auth.users` without requiring elevated client permissions.
+    </Note>
+
+    For more details on the schema, see [Supabase setup](/configuration/supabase-setup).
+  </Step>
+
+  <Step title="Set up Supabase Storage">
+    Snippet stores all uploaded audio files in a Supabase Storage bucket named `mp4`.
+
+    1. In the Supabase dashboard, go to **Storage**.
+    2. Click **New bucket**.
+    3. Name the bucket `mp4`.
+    4. Set the bucket to **Public** so that public URLs work for playback and download.
+    5. Click **Create bucket**.
+
+    Files are uploaded to a path like `uploads/<timestamp>-<random>.mp3` inside this bucket. The public URL is stored in the `tracks.file_url` column.
+
+    <Warning>
+      The bucket name must be exactly `mp4`. The upload action in `src/lib/actions.ts` hardcodes `supabase.storage.from("mp4")`. If you rename the bucket, update that reference.
+    </Warning>
+
+    For storage policy configuration, see [Storage setup](/configuration/storage).
+  </Step>
+
+  <Step title="Configure Google OAuth">
+    Snippet's login page uses Supabase Auth with Google as the OAuth provider.
+
+    1. In the [Google Cloud Console](https://console.cloud.google.com), create an OAuth 2.0 Client ID (Web application).
+    2. Add your Supabase project's callback URL as an authorized redirect URI:
+       ```
+       https://your-project-ref.supabase.co/auth/v1/callback
+       ```
+    3. In the Supabase dashboard, go to **Authentication → Providers → Google**.
+    4. Toggle Google **Enabled**.
+    5. Paste your Google **Client ID** and **Client Secret**.
+    6. Save.
+
+    For local development, also add `http://localhost:3000/auth/callback` as an authorized redirect URI in both Google Cloud Console and Supabase.
+  </Step>
+
+  <Step title="Run locally">
+    Start the development server:
+
+    <CodeGroup>
+
+    ```bash npm
+    npm run dev
+    ```
+
+    ```bash bun
+    bun dev
+    ```
+
+    </CodeGroup>
+
+    Open [http://localhost:3000](http://localhost:3000). You should see the Snippet login page. Sign in with Google to verify that authentication, database queries, and storage all work before deploying.
+
+    Other available scripts:
+
+    | Script | Command | Description |
+    |---|---|---|
+    | Development | `npm run dev` | Starts Next.js dev server with hot reload |
+    | Build | `npm run build` | Produces an optimized production build |
+    | Start | `npm start` | Runs the production build locally |
+    | Lint | `npm run lint` | Runs ESLint across the project |
+  </Step>
+
+  <Step title="Deploy to Vercel">
+    1. Push your repository to GitHub (or GitLab / Bitbucket).
+    2. Go to [vercel.com](https://vercel.com) and click **Add New → Project**.
+    3. Import the repository.
+    4. In the **Environment Variables** section, add the three variables from your `.env.local`:
+       - `NEXT_PUBLIC_SUPABASE_URL`
+       - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+       - `SUPABASE_SERVICE_ROLE_KEY`
+    5. Click **Deploy**.
+
+    Vercel will detect the Next.js framework automatically and run `npm run build`. Once the deployment succeeds, your Snippet instance is live.
+
+    <Tip>
+      After your first deployment, go back to the Google Cloud Console and add your Vercel production URL (e.g. `https://your-app.vercel.app/auth/callback`) as an additional authorized redirect URI. Otherwise, Google sign-in will fail in production.
+    </Tip>
+
+    For a full list of environment variables and their descriptions, see [Environment variables](/configuration/environment-variables).
+  </Step>
+</Steps>

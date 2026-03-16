@@ -1,0 +1,56 @@
+---
+title: "API overview"
+description: "All HTTP endpoints and server actions available in Snippet."
+---
+
+Snippet exposes a small set of HTTP API routes alongside a collection of Next.js Server Actions. All routes are relative to the application origin (e.g. `https://your-domain.com/api/groups`).
+
+## Authentication
+
+Every endpoint requires a valid Supabase session cookie, established when the user signs in through the Snippet UI. The middleware (`middleware.ts`) calls `updateSession` on every request to refresh and validate the session.
+
+Requests to protected endpoints that arrive without a valid session return **401 Unauthorized**.
+
+<Note>
+Cookies are set automatically by the browser after sign-in. If you are calling these endpoints from a script or external client, you must pass the session cookie in the `Cookie` header.
+</Note>
+
+## HTTP endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/groups` | List all groups the authenticated user belongs to |
+| `POST` | `/api/groups` | Create a new group and add the creator as a member |
+| `POST` | `/api/upload-file` | Upload an audio file to Supabase Storage |
+| `GET` | `/api/download-content` | Stub endpoint — returns an empty JSON object |
+| `POST` | `/api/confirm-invite` | Accept a group invitation and add the user as a member |
+
+<CardGroup cols={2}>
+  <Card title="Groups" icon="users" href="/api-reference/groups">
+    GET and POST /api/groups — list or create music groups.
+  </Card>
+  <Card title="Upload file" icon="cloud-arrow-up" href="/api-reference/upload-file">
+    POST /api/upload-file — upload an MP3 or MP4 file to storage.
+  </Card>
+  <Card title="Download content" icon="cloud-arrow-down" href="/api-reference/download-content">
+    GET /api/download-content — stub endpoint.
+  </Card>
+  <Card title="Confirm invite" icon="envelope-open" href="/api-reference/confirm-invite">
+    POST /api/confirm-invite — accept a group invitation.
+  </Card>
+</CardGroup>
+
+## Server Actions
+
+The following functionality is implemented as [Next.js Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations) in `src/lib/actions.ts`. They are called directly from React Server Components and Client Components — they are **not** HTTP endpoints and cannot be invoked with a plain HTTP client.
+
+| Function | Description |
+|----------|-------------|
+| `uploadFileToSupabase(file)` | Uploads a `File` object to the `mp4` Supabase Storage bucket and returns file metadata. |
+| `uploadMusic(fileMetadata, title, artist, groupId)` | Inserts a track record into the `tracks` table and revalidates relevant Next.js cache paths. |
+| `getTracksForGroup(groupId)` | Returns all tracks belonging to a specific group, ordered by upload date descending. |
+| `getTracksFromUser(userId)` | Returns all tracks uploaded by a specific user, ordered by upload date descending. |
+| `getTracksFromAllGroups(userId)` | Returns all tracks from every group the user is a member of, with the group name included on each track. |
+| `searchTracks(query)` | Case-insensitive search across track `title` and `artist` fields. |
+| `downloadMedia(url)` | Downloads a file blob from the `mp4` Supabase Storage bucket by its storage path. |
+| `getGroupMembers(groupId)` | Returns member records for a group, including a derived `username` from each member's email address. |

@@ -1,0 +1,186 @@
+---
+title: "Supabase setup"
+description: "Create and configure the Supabase project that backs Snippet's database and authentication."
+---
+
+Snippet uses Supabase for its PostgreSQL database, authentication, and storage. This guide walks through creating the project and running the database schema from scratch.
+
+<Steps>
+  <Step title="Create a Supabase account and project">
+    Go to [supabase.com](https://supabase.com) and sign up or log in. Click **New project**, choose an organization, set a project name and a strong database password, and select the region closest to your users.
+
+    Wait for the project to finish provisioning before continuing.
+  </Step>
+
+  <Step title="Run the database schema">
+    Open the **SQL Editor** in your Supabase dashboard and run the SQL below. This creates all four tables, the `users_view` view, and the `get_tracks_with_user_emails` function.
+
+    ```sql
+    -- View over auth.users to expose id and email to the public schema
+    CREATE VIEW users_view AS
+      SELECT id, email FROM auth.users;
+
+    -- Groups: private music libraries shared among members
+    CREATE TABLE groups (
+      id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      name        text NOT NULL,
+      description text,
+      created_by  text,
+      created_at  timestamptz NOT NULL DEFAULT now()
+    );
+
+    -- Group membership: links users to groups
+    CREATE TABLE group_members (
+      group_id   uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      member_id  uuid NOT NULL REFERENCES users_view(id) ON DELETE CASCADE,
+      joined_at  timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (group_id, member_id)
+    );
+
+    -- Tracks: uploaded audio/video files associated with a group
+    CREATE TABLE tracks (
+      id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      title       text NOT NULL,
+      artist      text NOT NULL,
+      group_id    uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      uploaded_by uuid NOT NULL REFERENCES users_view(id),
+      file_path   text NOT NULL,
+      file_url    text NOT NULL,
+      file_type   text NOT NULL,
+      file_size   bigint NOT NULL,
+      upload_date timestamptz DEFAULT now(),
+      album       text,
+      duration    numeric,
+      genre       text,
+      plays       int DEFAULT 0,
+      year        int
+    );
+
+    -- User uploads: tracks per-user upload links to groups
+    CREATE TABLE user_uploads (
+      created_at  timestamptz NOT NULL DEFAULT now(),
+      group_id    uuid REFERENCES groups(id) ON DELETE SET NULL,
+      upload_link text NOT NULL,
+      user_id     uuid NOT NULL REFERENCES users_view(id)
+    );
+
+    -- Function: return all tracks for a group with uploader email
+    CREATE OR REPLACE FUNCTION get_tracks_with_user_emails(p_group_id uuid)
+    RETURNS json[]
+    LANGUAGE sql
+    SECURITY DEFINER
+    AS $$
+      SELECT array_agg(row_to_json(t))
+      FROM (
+        SELECT
+          tr.*,
+          u.email AS uploader_email
+        FROM tracks tr
+        JOIN auth.users u ON u.id = tr.uploaded_by
+        WHERE tr.group_id = p_group_id
+        ORDER BY tr.upload_date DESC
+      ) t;
+    $$;
+    ```
+
+    <Note>
+      The `users_view` view must be created before the tables that reference it,
+      because `group_members`, `tracks`, and `user_uploads` all carry foreign
+      keys to `users_view(id)`.
+    </Note>
+  </Step>
+
+  <Step title="Enable Row Level Security">
+    Run the following SQL to enable RLS on all four tables and add baseline policies. Adjust the policies to match your exact access requirements.
+
+    ```sql
+    -- Enable RLS
+    ALTER TABLE groups        ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE tracks        ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE user_uploads  ENABLE ROW LEVEL SECURITY;
+
+    -- Groups: any authenticated user can read; only the creator can modify
+    CREATE POLICY "Authenticated users can read groups"
+      ON groups FOR SELECT
+      TO authenticated
+      USING (true);
+
+    CREATE POLICY "Creator can insert groups"
+      ON groups FOR INSERT
+      TO authenticated
+      WITH CHECK (created_by = auth.uid()::text);
+
+    CREATE POLICY "Creator can update groups"
+      ON groups FOR UPDATE
+      TO authenticated
+      USING (created_by = auth.uid()::text);
+
+    CREATE POLICY "Creator can delete groups"
+      ON groups FOR DELETE
+      TO authenticated
+      USING (created_by = auth.uid()::text);
+
+    -- Group members: members can read their own group memberships
+    CREATE POLICY "Members can read group_members"
+      ON group_members FOR SELECT
+      TO authenticated
+      USING (
+        group_id IN (
+          SELECT group_id FROM group_members WHERE member_id = auth.uid()
+        )
+      );
+
+    CREATE POLICY "Authenticated users can join groups"
+      ON group_members FOR INSERT
+      TO authenticated
+      WITH CHECK (member_id = auth.uid());
+
+    -- Tracks: visible to members of the same group
+    CREATE POLICY "Group members can read tracks"
+      ON tracks FOR SELECT
+      TO authenticated
+      USING (
+        group_id IN (
+          SELECT group_id FROM group_members WHERE member_id = auth.uid()
+        )
+      );
+
+    CREATE POLICY "Authenticated users can insert tracks"
+      ON tracks FOR INSERT
+      TO authenticated
+      WITH CHECK (uploaded_by = auth.uid());
+
+    -- User uploads: users can only see and insert their own rows
+    CREATE POLICY "Users can read own uploads"
+      ON user_uploads FOR SELECT
+      TO authenticated
+      USING (user_id = auth.uid());
+
+    CREATE POLICY "Users can insert own uploads"
+      ON user_uploads FOR INSERT
+      TO authenticated
+      WITH CHECK (user_id = auth.uid());
+    ```
+  </Step>
+
+  <Step title="Enable Email Auth">
+    In the Supabase dashboard, go to **Authentication → Providers** and ensure **Email** is enabled. Snippet uses email/password authentication — no OAuth providers are required.
+
+    Optionally, under **Authentication → Email Templates**, customise the confirmation and magic-link emails to match your branding.
+  </Step>
+
+  <Step title="Copy your project credentials">
+    Go to **Project Settings → API** and copy the following values into your `.env.local` file:
+
+    - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+    - **anon public** key → `NEXT_PUBLIC_SUPABASE_KEY`
+    - **service_role** key → `SUPABASE_SERVICE_ROLE_KEY`
+
+    See [Environment variables](/configuration/environment-variables) for the full `.env.local` template and instructions for adding these to Vercel.
+  </Step>
+
+  <Step title="Create the storage bucket">
+    Snippet stores all uploaded audio and video files in a Supabase Storage bucket. Follow the [Storage](/configuration/storage) guide to create the `mp4` bucket and configure access policies.
+  </Step>
+</Steps>

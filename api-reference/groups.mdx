@@ -1,0 +1,137 @@
+---
+title: "Groups"
+description: "List groups for the authenticated user and create new groups."
+---
+
+## GET /api/groups
+
+Returns every group that the authenticated user is a member of, including group metadata.
+
+### Query parameters
+
+<ParamField query="user_id" type="string" required>
+  The authenticated user's Supabase user ID. If this parameter is omitted the endpoint returns a plain-text error response (no JSON body) with a 200 status.
+</ParamField>
+
+### Response
+
+**200 OK**
+
+```json
+{
+  "data": [
+    {
+      "member_id": "uuid",
+      "group_id": "uuid",
+      "joined_at": "2024-01-15T10:30:00Z",
+      "groups": {
+        "id": "uuid",
+        "name": "Weekend Jams",
+        "created_by": "user@example.com",
+        "description": "Our Friday night playlist group"
+      }
+    }
+  ]
+}
+```
+
+<ResponseField name="data" type="GroupMembership[]">
+  Array of group membership records for the user.
+
+  <Expandable title="GroupMembership properties">
+    <ResponseField name="member_id" type="string">
+      The user's Supabase auth UUID.
+    </ResponseField>
+    <ResponseField name="group_id" type="string">
+      The UUID of the group.
+    </ResponseField>
+    <ResponseField name="joined_at" type="string">
+      ISO 8601 timestamp of when the user joined the group.
+    </ResponseField>
+    <ResponseField name="groups" type="object">
+      Nested group record.
+
+      <Expandable title="groups properties">
+        <ResponseField name="id" type="string">
+          Group UUID.
+        </ResponseField>
+        <ResponseField name="name" type="string">
+          Display name of the group.
+        </ResponseField>
+        <ResponseField name="created_by" type="string | null">
+          Email address of the user who created the group.
+        </ResponseField>
+        <ResponseField name="description" type="string | null">
+          Optional description of the group.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**500 Internal Server Error**
+
+```json
+{ "error": "error fetching groups" }
+```
+
+### Example
+
+```bash
+curl -X GET "https://your-domain.com/api/groups?user_id=USER_UUID" \
+  -H "Cookie: <supabase-session-cookie>"
+```
+
+---
+
+## POST /api/groups
+
+Creates a new group and automatically adds the creator as its first member. The group is assigned a UUID v4 identifier.
+
+### Request body
+
+<ParamField body="name" type="string" required>
+  Display name for the new group.
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  A short description of the group.
+</ParamField>
+
+<ParamField body="userEmail" type="string" required>
+  Email address of the user creating the group. Stored in the group's `created_by` field.
+</ParamField>
+
+<ParamField body="userId" type="string" required>
+  Supabase auth UUID of the user creating the group. Used to insert the initial `group_members` record.
+</ParamField>
+
+### Response
+
+**200 OK**
+
+Returns an empty JSON object on success.
+
+```json
+{}
+```
+
+**500 Internal Server Error**
+
+```json
+{ "error": "<database error message>" }
+```
+
+### Example
+
+```bash
+curl -X POST "https://your-domain.com/api/groups" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: <supabase-session-cookie>" \
+  -d '{
+    "name": "Weekend Jams",
+    "description": "Our Friday night playlist group",
+    "userEmail": "user@example.com",
+    "userId": "USER_UUID"
+  }'
+```

@@ -1,0 +1,27 @@
+---
+title: "Download content"
+description: "Stub endpoint that returns an empty JSON object."
+---
+
+## GET /api/download-content
+
+This endpoint is a stub. It accepts a `GET` request and returns an empty JSON object with a **200 OK** status. No query parameters are processed and no data is read from the database or storage.
+
+<Warning>
+This route does not yet implement file download functionality. Actual file downloads are handled by the `downloadMedia` Server Action in `src/lib/actions.ts`, which calls `supabase.storage.from("mp4").download(url)` directly from server components.
+</Warning>
+
+### Response
+
+**200 OK**
+
+```json
+{}
+```
+
+### Example
+
+```bash
+curl -X GET "https://your-domain.com/api/download-content" \
+  -H "Cookie: <supabase-session-cookie>"
+```
